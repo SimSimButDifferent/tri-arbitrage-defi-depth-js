@@ -13,6 +13,26 @@ function getFile(fPath) {
     }
 }
 
+// Calculate arbitrage
+function calculateArbitrage(amountIn, amountOut, surfaceObj) {
+    
+    // Calculate profit/loss
+    let threshhold = 0
+    let resultArray = [surfaceObj]
+    let profitLossPerc = 0
+    let profitLoss = amountOut - amountIn
+    if (profitLoss > threshhold) {
+        profitLossPerc = (profitLoss / amountIn) * 100
+        
+        // Provide output result
+        resultArray.push({profitLossPerc: profitLossPerc})
+        console.log(resultArray)
+    }
+    return
+}
+
+
+
 // Get Price
 async function getPrice(factory, amtIn, tradeDirection) {
 
@@ -94,18 +114,19 @@ async function getPrice(factory, amtIn, tradeDirection) {
     }
     
     // Format output
-    let outPutAmount = ethers.utils.formatUnits(quotedAmountOut, inputDecimalsB).toString()
-    return outPutAmount
+    let outputAmount = ethers.utils.formatUnits(quotedAmountOut, inputDecimalsB).toString()
+    return outputAmount
 
 }
 
 // Get Depth
-async function getDepth(amountIn, limit) {
+async function getDepth(amountIn) {
 
     // Get JSON surface rates
     console.log("Reading surface rate information");
     let fileInfo = getFile("../uniswap/uniswap_surface_rates.json");
     fileJsonArray = JSON.parse(fileInfo);
+    let limit = fileJsonArray.length
     fileJsonArrayLimit = fileJsonArray.slice(0, limit);
     
     // Loop through each trade and get price information
@@ -123,19 +144,20 @@ async function getDepth(amountIn, limit) {
         console.log("Checking trade 1 aqcuired coin...")
         let acquiredCoinT1 = await getPrice(pair1ContractAddress, amountIn, trade1Direction)
         
-        console.log("Checking trade 2 aqcuired coin...")
+        // Trade 2
+        //console.log("Checking trade 2 aqcuired coin...")
         if (acquiredCoinT1 == 0) {return}
         let acquiredCoinT2 = await getPrice(pair2ContractAddress, acquiredCoinT1, trade2Direction)
         
-        console.log("Checking trade 3 aqcuired coin...")
+        // Trade 3
+        //console.log("Checking trade 3 aqcuired coin...")
         if (acquiredCoinT2 == 0) {return}
         let acquiredCoinT3 = await getPrice(pair3ContractAddress, acquiredCoinT2, trade3Direction)
 
-        console.log(amountIn, acquiredCoinT3)
-        
+        // Calculate and show result
+        let result = calculateArbitrage(amountIn, acquiredCoinT3, fileJsonArrayLimit[i])     
     }
-
     return
 }
 
-getDepth(amountIn=1, limit=1)
+getDepth(amountIn=1)
