@@ -21,12 +21,39 @@ async function getPrice(factory, amtIn, tradeDirection) {
     "function token1() external view returns (address)",
     "function fee() external view returns (uint24)",
     ];
-const address = factory;
-const poolContract = new ethers.Contract(address, ABI, provider)
-let token0Address = await poolContract.token0()
-let token1Address = await poolContract.token1()
-let tokenFee = await poolContract.fee()
-console.log(token1Address, token1Address, tokenFee)
+    const address = factory;
+
+    // Get pool token information
+    const poolContract = new ethers.Contract(address, ABI, provider)
+    let token0Address = await poolContract.token0()
+    let token1Address = await poolContract.token1()
+    let tokenFee = await poolContract.fee()
+
+    // Get individual token information (symbol, name, decimals)
+    let addressArray = [token0Address, token1Address]
+    let tokenInfoArray = []
+
+    for (let i=0; i < addressArray.length; i++) {
+        let tokenAddress = addressArray[i]
+        let tokenAbi = [
+            "function name() view returns (string)",
+            "function symbol() view returns (string)",
+            "function decimals() view returns (uint)"
+        ]
+        let contract = new ethers.Contract(tokenAddress, tokenAbi, provider)
+        let tokenSymbol = await contract.symbol()
+        let tokenName = await contract.name()
+        let tokenDecimals = await contract.decimals()
+        let obj = {
+            id: "token" + i,
+            tokenSymbol: tokenSymbol,
+            tokenName: tokenName,
+            tokenDecimals: tokenDecimals
+        }
+        tokenInfoArray.push(obj)
+    }
+    // Identify the correct token to input as A and B respectively
+
 }
 
 // Get Depth
