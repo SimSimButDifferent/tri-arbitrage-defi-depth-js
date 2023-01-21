@@ -15,6 +15,8 @@ function getFile(fPath) {
 
 // Get Price
 async function getPrice(factory, amtIn, tradeDirection) {
+
+    // Get provider
     const provider = new ethers.providers.JsonRpcProvider("https://mainnet.infura.io/v3/03b6e2a30eca448895162968c0d4f6aa");
     const ABI = [
     "function token0() external view returns (address)",
@@ -48,11 +50,52 @@ async function getPrice(factory, amtIn, tradeDirection) {
             id: "token" + i,
             tokenSymbol: tokenSymbol,
             tokenName: tokenName,
-            tokenDecimals: tokenDecimals
+            tokenDecimals: tokenDecimals,
+            tokenAddress: tokenAddress
         }
         tokenInfoArray.push(obj)
     }
     // Identify the correct token to input as A and B respectively
+    let inputTokenA = ""
+    let inputDecimalsA = 0
+    let inputTokenB = ""
+    let inputDecimalsB = 0
+
+    if (tradeDirection == "baseToQuote") {
+        inputTokenA = tokenInfoArray[0].tokenAddress
+        inputDecimalsA = tokenInfoArray[0].tokenDecimals
+        inputTokenB = tokenInfoArray[1].tokenAddress
+        inputDecimalsB = tokenInfoArray[1].tokenDecimals
+    }
+    if (tradeDirection == "quoteToBase") {
+        inputTokenA = tokenInfoArray[1].tokenAddress
+        inputDecimalsA = tokenInfoArray[1].tokenDecimals
+        inputTokenB = tokenInfoArray[0].tokenAddress
+        inputDecimalsB = tokenInfoArray[0].tokenDecimals
+    }
+
+    // Reformat amount in
+    if (!isNaN(amtIn)) {amtIn = amtIn.toString()}
+    let amountIn = ethers.utils.parseUnits(amtIn, inputDecimalsA).toString()
+
+    // Get uniswap V3 quote
+    const quoterAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+    const quoterContract = new ethers.Contract(quoterAddress, QuoterABI, provider)
+    let quotedAmountOut = 0
+    try {
+        quotedAmountOut = await quoterContract.callStatic.quoteExactInputSingle(
+            inputTokenA,
+            inputTokenB,
+            tokenFee,
+            amountIn,
+            0)
+    } catch (err) {
+        return 0
+    }
+    
+    // Format output
+    let outPutAmount = ethers.utils.formatUnits(quotedAmountOut, inputDecimalsB).toString()
+    return outPutAmount
 
 }
 
@@ -78,7 +121,18 @@ async function getDepth(amountIn, limit) {
 
         // Trade 1
         console.log("Checking trade 1 aqcuired coin...")
-        let acquiredCoinDetail = await getPrice(pair1ContractAddress, amountIn, trade1Direction)
+        let acquiredCoinT1 = await getPrice(pair1ContractAddress, amountIn, trade1Direction)
+        
+        console.log("Checking trade 2 aqcuired coin...")
+        if (acquiredCoinT1 == 0) {return}
+        let acquiredCoinT2 = await getPrice(pair2ContractAddress, acquiredCoinT1, trade2Direction)
+        
+        console.log("Checking trade 3 aqcuired coin...")
+        if (acquiredCoinT2 == 0) {return}
+        let acquiredCoinT3 = await getPrice(pair3ContractAddress, acquiredCoinT2, trade3Direction)
+
+        console.log(amountIn, acquiredCoinT3)
+        
     }
 
     return
